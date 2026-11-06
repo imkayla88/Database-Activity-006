@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Art Database Gallery - Activity 006</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        h1 { color: #333; margin-bottom: 10px; }
+
+        .main-container { display: flex; width: 100%; max-width: 1400px; gap: 20px; }
+
+        /* Gallery Grid */
+        #gallery { flex: 2; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; max-height: 80vh; overflow-y: auto; padding: 10px; }
+        .card { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; text-align: left; }
+        .card:hover { transform: translateY(-3px); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        .card img { width: 100%; height: 140px; object-fit: cover; border-radius: 4px; background: #eee; }
+        .card h4 { font-size: 14px; margin: 8px 0 4px 0; color: #222; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card p { font-size: 12px; color: #666; margin: 0; }
+
+        /* Edit Form Panel */
+        #form-panel { flex: 1; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); height: fit-content; position: sticky; top: 20px; }
+        #form-panel h3 { margin-top: 0; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        .form-group label { display: block; font-size: 13px; font-weight: bold; color: #444; margin-bottom: 5px; }
+        .form-group input, .form-group textarea { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        .form-group input:disabled { background-color: #e9ecef; color: #6c757d; cursor: not-allowed; }
+        button { background: #007bff; color: white; border: none; padding: 10px 15px; font-size: 14px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; }
+        button:hover { background: #0056b3; }
+        #status-msg { margin-top: 10px; font-size: 13px; color: green; text-align: center; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<h1>Art Gallery Database Activity</h1>
+<p style="color: #666; margin-bottom: 20px;">Click any painting card to load and edit its details.</p>
+
+<div class="main-container">
+    <!-- Painting Gallery (Icons List) -->
+    <div id="gallery">Loading paintings...</div>
+
+    <!-- Edit Form Panel -->
+    <div id="form-panel">
+        <h3>Painting Details & Editor</h3>
+        <form id="painting-form">
+            <div class="form-group">
+                <label for="paintingid">Painting ID (Primary Key - Read Only)</label>
+                <input type="text" id="paintingid" disabled>
+            </div>
+            <div class="form-group">
+                <label for="title">Title</label>
+                <input type="text" id="title" required>
+            </div>
+            <div class="form-group">
+                <label for="medium">Medium</label>
+                <input type="text" id="medium">
+            </div>
+            <div class="form-group">
+                <label for="yearofwork">Year of Work</label>
+                <input type="number" id="yearofwork">
+            </div>
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" rows="4"></textarea>
+            </div>
+            <button type="submit">Update Database</button>
+            <div id="status-msg"></div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let currentPaintings = [];
+
+    // Fetch paintings using fetch() and display them as icon cards
+    fetch('/api/paintings')
+        .then(res => res.json())
+        .then(paintings => {
+            currentPaintings = paintings;
+            const gallery = document.getElementById('gallery');
+            gallery.innerHTML = '';
+
+            paintings.forEach(painting => {
+                const card = document.createElement('div');
+                card.className = 'card';
+
+                const img = document.createElement('img');
+                img.src = `art/works/square-medium/${painting.imagefilename}`;
+                img.onerror = function() {
+                    this.onerror = null;
+                    this.src = 'https://via.placeholder.com/200?text=No+Image';
+                };
+                img.alt = painting.title || '';
+
+                const title = document.createElement('h4');
+                title.textContent = painting.title || 'Untitled';
+
+                const medium = document.createElement('p');
+                medium.textContent = painting.medium || 'Unknown medium';
+
+                card.appendChild(img);
+                card.appendChild(title);
+                card.appendChild(medium);
+
+                // Event listener for painting icon clicks
+                card.addEventListener('click', () => {
+                    populateForm(painting);
+                });
+
+                gallery.appendChild(card);
+            });
+        })
+        .catch(err => {
+            document.getElementById('gallery').textContent = 'Failed to load paintings.';
+            console.error(err);
+        });
+
+    // Populate the form with selected painting data
+    function populateForm(painting) {
+        document.getElementById('paintingid').value = painting.paintingid || '';
+        document.getElementById('title').value = painting.title || '';
+        document.getElementById('medium').value = painting.medium || '';
+        document.getElementById('yearofwork').value = painting.yearofwork || '';
+        document.getElementById('description').value = painting.description || '';
+        document.getElementById('status-msg').textContent = '';
+    }
+
+    // Handle form submission to update database
+    document.getElementById('painting-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('paintingid').value;
+        if (!id) {
+            alert('Please select a painting first.');
+            return;
+        }
+
+        const updatedData = {
+            title: document.getElementById('title').value,
+            medium: document.getElementById('medium').value,
+            yearofwork: document.getElementById('yearofwork').value ? parseInt(document.getElementById('yearofwork').value) : null,
+            description: document.getElementById('description').value
+        };
+
+        try {
+            const response = await fetch(`/api/paintings/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedData)
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                document.getElementById('status-msg').textContent = 'Successfully updated in database!';
+            } else {
+                alert('Error updating: ' + result.error);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Failed to connect to server.');
+        }
+    });
+</script>
+</body>
+</html>
